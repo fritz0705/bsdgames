@@ -55,6 +55,8 @@ __RCSID("$NetBSD: worm.c,v 1.25 2004/01/27 20:30:31 jsm Exp $");
 #include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 #define newlink() (struct body *) malloc(sizeof (struct body));
 #define HEAD '@'
@@ -91,6 +93,21 @@ void	prize(void);
 int	rnd(int);
 void	setup(void);
 void	wake(int);
+
+static void write_highscore(int score) {
+	struct passwd *pw = getpwuid(getuid());
+	if (!pw) return;
+	int highoff = strlen(pw->pw_dir);
+	char *highscorepath = malloc(highoff + sizeof "/.highscore" + 10);
+	strcpy(highscorepath, pw->pw_dir);
+	strcpy(highscorepath + highoff, "/.highscore");
+	highscorepath[highoff + sizeof "/.highscore"] = 0;
+
+	FILE *f = fopen(highscorepath, "a");
+	if (!f) return;
+	fprintf(f, "%s %d\n", pw->pw_name, score);
+	fclose(f);
+}
 
 int
 main(argc, argv)
@@ -207,6 +224,7 @@ leave(dummy)
 	if (dummy == 0){	/* called via crash() */
 		printf("\nWell, you ran into something and the game is over.\n");
 		printf("Your final score was %d\n\n", score);
+		write_highscore(score);
 	}
 	exit(0);
 }
